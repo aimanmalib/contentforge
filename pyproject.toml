@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mimo-contentforge"
+version = "1.0.0"
+description = "8-Agent AI Content Pipeline powered by Xiaomi MiMo V2.5 Pro"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "ContentForge Team"}
+]
+keywords = ["ai", "content", "agents", "mimo", "pipeline", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+dependencies = [
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+    "rich>=13.0.0",
+    "click>=8.1.0",
+    "pyyaml>=6.0",
+    "jinja2>=3.1.0",
+    "tiktoken>=0.5.0",
+    "asyncio-throttle>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.10.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+]
+
+[project.scripts]
+contentforge = "contentforge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests (no external calls)",
+    "integration: Integration tests (may call APIs)",
+    "slow: Slow tests (>5s)",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
