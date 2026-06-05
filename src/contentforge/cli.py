@@ -25,9 +25,10 @@ console = Console()
 @click.option("--verbose", "-v", is_flag=True, help="Verbose logging")
 @click.pass_context
 def main(ctx: click.Context, config: str | None, verbose: bool) -> None:
-    """MiMo ContentForge — 8-Agent AI Content Pipeline.
+    """ContentForge — 8-Agent AI Content Pipeline.
 
-    Powered by Xiaomi MiMo V2.5 Pro via Token Plan API.
+    Provider-agnostic: runs on any OpenAI-compatible LLM endpoint
+    (OpenAI, OpenRouter, Ollama, MiMo, ...).
     """
     import logging
 
