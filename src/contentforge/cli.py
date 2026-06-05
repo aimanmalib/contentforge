@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from pathlib import Path
 
 import click
 from rich.console import Console
@@ -118,14 +117,7 @@ def generate(
 @click.pass_context
 def agents(ctx: click.Context) -> None:
     """List all available agents."""
-    config: ContentForgeConfig = ctx.obj.get("config") or ContentForgeConfig.from_env()
-
-    from .core.mimo_client import MiMoClient
-    from .core.token_tracker import TokenTracker
-
-    tracker = TokenTracker()
-    # Create a temporary client just for listing
-    client_config = config.mimo
+    _config: ContentForgeConfig = ctx.obj.get("config") or ContentForgeConfig.from_env()
 
     table = Table(title="ContentForge Agents", border_style="cyan")
     table.add_column("Name", style="bold")
