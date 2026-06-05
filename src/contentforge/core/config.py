@@ -107,6 +107,7 @@ class MiMoConfig(LLMConfig):
 
 class PipelineConfig(BaseModel):
     """Pipeline execution settings."""
+
     topic: str = ""
     target_word_count: int = 2000
     language: str = "en"
@@ -121,6 +122,7 @@ class PipelineConfig(BaseModel):
 
 class AgentConfig(BaseModel):
     """Per-agent configuration overrides."""
+
     name: str
     enabled: bool = True
     model_override: Optional[str] = None
@@ -131,6 +133,7 @@ class AgentConfig(BaseModel):
 
 class ContentForgeConfig(BaseModel):
     """Root configuration."""
+
     llm: LLMConfig = Field(default_factory=LLMConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     agents: list[AgentConfig] = Field(default_factory=list)

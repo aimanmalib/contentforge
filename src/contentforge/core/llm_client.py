@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TokenUsage:
     """Track token consumption per call and cumulative."""
+
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
@@ -128,9 +129,9 @@ class LLMClient:
                     data = resp.json()
                     break
             except (httpx.HTTPStatusError, httpx.ConnectError) as e:
-                logger.warning(f"LLM API attempt {attempt+1} failed: {e}")
+                logger.warning(f"LLM API attempt {attempt + 1} failed: {e}")
                 if attempt < self.config.max_retries - 1:
-                    await asyncio.sleep(self.config.retry_delay * (2 ** attempt))
+                    await asyncio.sleep(self.config.retry_delay * (2**attempt))
                 else:
                     raise
 
@@ -167,9 +168,7 @@ class LLMClient:
         reasoning_parts: list[str] = []
         usage = TokenUsage()
 
-        async with self._client.stream(
-            "POST", "/chat/completions", json=payload
-        ) as resp:
+        async with self._client.stream("POST", "/chat/completions", json=payload) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
                 if not line.startswith("data: "):
@@ -224,9 +223,7 @@ class LLMClient:
             "stream": True,
         }
 
-        async with self._client.stream(
-            "POST", "/chat/completions", json=payload
-        ) as resp:
+        async with self._client.stream("POST", "/chat/completions", json=payload) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
                 if not line.startswith("data: "):

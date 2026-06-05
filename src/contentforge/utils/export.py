@@ -41,12 +41,12 @@ def export_html(content: str, metadata: dict, output_path: str | Path) -> Path:
 
     # Simple Markdown to HTML conversion
     html_body = content
-    html_body = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html_body, flags=re.MULTILINE)
-    html_body = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html_body, flags=re.MULTILINE)
-    html_body = re.sub(r'^# (.+)$', r'<h1>\1</h1>', html_body, flags=re.MULTILINE)
-    html_body = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html_body)
-    html_body = re.sub(r'\*(.+?)\*', r'<em>\1</em>', html_body)
-    html_body = re.sub(r'^(?!<h|<strong|<em)(.+)$', r'<p>\1</p>', html_body, flags=re.MULTILINE)
+    html_body = re.sub(r"^### (.+)$", r"<h3>\1</h3>", html_body, flags=re.MULTILINE)
+    html_body = re.sub(r"^## (.+)$", r"<h2>\1</h2>", html_body, flags=re.MULTILINE)
+    html_body = re.sub(r"^# (.+)$", r"<h1>\1</h1>", html_body, flags=re.MULTILINE)
+    html_body = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", html_body)
+    html_body = re.sub(r"\*(.+?)\*", r"<em>\1</em>", html_body)
+    html_body = re.sub(r"^(?!<h|<strong|<em)(.+)$", r"<p>\1</p>", html_body, flags=re.MULTILINE)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">

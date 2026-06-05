@@ -4,7 +4,6 @@ Covers the provider-agnostic LLMConfig: preset resolution, bearer vs api-key
 auth styles, env-var fallbacks, and backward-compatible MiMoConfig behaviour.
 """
 
-
 from contentforge.core.config import (
     DEFAULT_PROVIDER,
     PROVIDER_PRESETS,
