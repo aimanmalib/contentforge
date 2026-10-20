@@ -1,7 +1,9 @@
 # Example ContentForge pipeline configuration
-mimo:
-  base_url: https://token-plan-sgp.xiaomimimo.com/v1
-  model: mimo-v2.5-pro
+# Usage: contentforge -c examples/pipeline.yaml generate "Your topic"
+llm:
+  provider: openai              # openai | openrouter | ollama | groq | deepseek | together | mistral | mimo
+  api_key: ${OPENAI_API_KEY}    # expanded from the environment
+  model: gpt-4o-mini
   max_tokens: 4096
   temperature: 0.7
   max_retries: 3

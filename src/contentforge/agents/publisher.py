@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .base import BaseAgent, AgentResult
+from .base import AgentResult, BaseAgent
 
 
 class PublisherAgent(BaseAgent):
@@ -77,7 +77,7 @@ Generate:
 
 Return as structured JSON."""
 
-        response = await self._call_mimo(prompt)
+        response = await self._call_llm(prompt)
 
         # Write output files
         output_path = Path(output_dir)

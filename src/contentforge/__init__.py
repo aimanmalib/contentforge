@@ -11,4 +11,4 @@ Usage:
 """
 
 __version__ = "1.0.0"
-__author__ = "ContentForge Team"
+__author__ = "Muhammad Aiman"

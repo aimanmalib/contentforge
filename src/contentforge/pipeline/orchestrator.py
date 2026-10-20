@@ -9,7 +9,7 @@ from typing import Any, Optional
 from ..agents import AGENT_REGISTRY, get_agent
 from ..agents.base import AgentResult
 from ..core.config import ContentForgeConfig
-from ..core.mimo_client import MiMoClient
+from ..core.llm_client import LLMClient
 from ..core.token_tracker import TokenTracker
 
 logger = logging.getLogger(__name__)
@@ -80,7 +80,7 @@ class PipelineOrchestrator:
     def __init__(self, config: ContentForgeConfig):
         self.config = config
         self.tracker = TokenTracker(output_dir=config.output_dir)
-        self._client: Optional[MiMoClient] = None
+        self._client: Optional[LLMClient] = None
 
     async def run(self, topic: str, **kwargs) -> PipelineResult:
         """Execute the full pipeline for a given topic."""
@@ -88,7 +88,7 @@ class PipelineOrchestrator:
 
         self.tracker.start_pipeline()
 
-        async with MiMoClient(self.config.mimo) as client:
+        async with LLMClient(self.config.llm) as client:
             self._client = client
 
             try:
@@ -136,14 +136,19 @@ class PipelineOrchestrator:
                 result.agent_results["writer"] = writer_result
                 current_content = writer_result.content
 
-                # Step 4: SEO Analysis
-                logger.info("[Pipeline] Step 4/8: SEO")
-                seo_agent = get_agent(
-                    "seo", config=self.config, client=client, tracker=self.tracker
-                )
-                seo_result = await seo_agent.run(content=current_content)
-                result.agent_results["seo"] = seo_result
-                result.seo_analysis = seo_result.content
+                # Step 4: SEO Analysis (optional)
+                seo_recommendations = ""
+                if self.config.pipeline.seo_enabled:
+                    logger.info("[Pipeline] Step 4/8: SEO")
+                    seo_agent = get_agent(
+                        "seo", config=self.config, client=client, tracker=self.tracker
+                    )
+                    seo_result = await seo_agent.run(content=current_content)
+                    result.agent_results["seo"] = seo_result
+                    result.seo_analysis = seo_result.content
+                    seo_recommendations = seo_result.content
+                else:
+                    logger.info("[Pipeline] Step 4/8: SEO (skipped, disabled)")
 
                 # Step 5 + 6: Editor → Quality loop
                 for iteration in range(self.config.pipeline.max_iterations):
@@ -153,7 +158,7 @@ class PipelineOrchestrator:
                     )
                     editor_result = await editor_agent.run(
                         content=current_content,
-                        seo_recommendations=seo_result.content,
+                        seo_recommendations=seo_recommendations,
                     )
                     result.agent_results["editor"] = editor_result
                     current_content = editor_result.content

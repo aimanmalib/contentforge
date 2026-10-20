@@ -27,8 +27,15 @@ class TestProviderPresets:
         ):
             assert provider in PROVIDER_PRESETS
 
-    def test_default_provider_is_mimo(self):
-        assert DEFAULT_PROVIDER == "mimo"
+    def test_default_provider_is_openai(self):
+        assert DEFAULT_PROVIDER == "openai"
+
+    def test_default_llm_config_uses_openai(self, monkeypatch):
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+        config = LLMConfig(api_key="sk-test")
+        assert config.provider == "openai"
+        assert config.base_url == "https://api.openai.com/v1"
+        assert config.headers["Authorization"] == "Bearer sk-test"
 
 
 class TestLLMConfigPresetResolution:
@@ -50,7 +57,13 @@ class TestLLMConfigPresetResolution:
 
     def test_unknown_provider_falls_back_to_default(self):
         config = LLMConfig(provider="does-not-exist", api_key="x")
-        assert "xiaomimimo.com" in config.base_url  # mimo default
+        assert config.base_url == "https://api.openai.com/v1"  # openai default
+        assert config.auth_style == "bearer"
+
+    def test_custom_provider_with_base_url_uses_bearer(self):
+        config = LLMConfig(provider="custom", base_url="http://localhost:8000/v1", api_key="k")
+        assert config.base_url == "http://localhost:8000/v1"
+        assert config.headers["Authorization"] == "Bearer k"
 
     def test_groq_preset(self):
         config = LLMConfig(provider="groq", api_key="gsk-test")
@@ -137,3 +150,45 @@ class TestMiMoBackwardCompat:
         config = ContentForgeConfig(**{"llm": {"provider": "openai", "api_key": "sk-x"}})
         assert config.llm.provider == "openai"
         assert config.llm.auth_style == "bearer"
+
+
+class TestEnvConfiguration:
+    def test_from_env_selects_provider_and_model(self, monkeypatch):
+        monkeypatch.setenv("CONTENTFORGE_PROVIDER", "openrouter")
+        monkeypatch.setenv("CONTENTFORGE_MODEL", "some/model")
+        monkeypatch.setenv("OPENROUTER_API_KEY", "or-key")
+        config = ContentForgeConfig.from_env()
+        assert config.llm.provider == "openrouter"
+        assert config.llm.model == "some/model"
+        assert config.llm.api_key == "or-key"
+        assert "openrouter.ai" in config.llm.base_url
+
+    def test_from_env_defaults_to_openai(self, monkeypatch):
+        monkeypatch.delenv("CONTENTFORGE_PROVIDER", raising=False)
+        monkeypatch.delenv("CONTENTFORGE_MODEL", raising=False)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-env")
+        config = ContentForgeConfig.from_env()
+        assert config.llm.provider == "openai"
+        assert config.llm.api_key == "sk-env"
+
+    def test_yaml_env_reference_is_expanded(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        path = tmp_path / "cf.yaml"
+        path.write_text("llm:\n  provider: openai\n  api_key: ${OPENAI_API_KEY}\n")
+        config = ContentForgeConfig.from_yaml(path)
+        assert config.llm.api_key == "sk-from-env"
+
+    def test_yaml_unset_env_reference_falls_back_to_preset_env(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("MISSING_VAR", raising=False)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-preset")
+        path = tmp_path / "cf.yaml"
+        path.write_text("llm:\n  api_key: ${MISSING_VAR}\n")
+        config = ContentForgeConfig.from_yaml(path)
+        assert config.llm.api_key == "sk-preset"
+
+    def test_template_never_contains_resolved_key(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-secret")
+        config = ContentForgeConfig.from_env()
+        data = config.to_template()
+        assert data["llm"]["api_key"] == "${OPENAI_API_KEY}"
+        assert "sk-secret" not in str(data)

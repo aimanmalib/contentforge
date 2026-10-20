@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+
 import yaml
 
 from contentforge.core.config import (
@@ -103,7 +104,8 @@ class TestAgentConfig:
 class TestContentForgeConfig:
     def test_default_config(self):
         config = ContentForgeConfig()
-        assert config.mimo.model == "mimo-v2.5-pro"
+        assert config.llm.provider == "openai"
+        assert config.llm.model == "gpt-4o-mini"
         assert config.log_level == "INFO"
         assert config.output_dir == "./output"
 
@@ -124,9 +126,17 @@ class TestContentForgeConfig:
         os.unlink(f.name)
 
     def test_from_env(self, monkeypatch):
-        monkeypatch.setenv("MIMO_API_KEY", "env-test-key")
+        monkeypatch.delenv("CONTENTFORGE_PROVIDER", raising=False)
+        monkeypatch.setenv("OPENAI_API_KEY", "env-test-key")
         config = ContentForgeConfig.from_env()
-        assert config.mimo.api_key == "env-test-key"
+        assert config.llm.api_key == "env-test-key"
+
+    def test_from_env_mimo_provider(self, monkeypatch):
+        monkeypatch.setenv("CONTENTFORGE_PROVIDER", "mimo")
+        monkeypatch.setenv("MIMO_API_KEY", "mimo-key")
+        config = ContentForgeConfig.from_env()
+        assert config.llm.provider == "mimo"
+        assert config.llm.headers["api-key"] == "mimo-key"
 
     def test_get_agent_config_existing(self):
         config = ContentForgeConfig(agents=[AgentConfig(name="writer", temperature_override=0.9)])

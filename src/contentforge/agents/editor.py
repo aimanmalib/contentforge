@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .base import BaseAgent, AgentResult
+from .base import AgentResult, BaseAgent
 
 
 class EditorAgent(BaseAgent):
@@ -55,7 +55,7 @@ Return:
 1. The FULL edited article in Markdown (not a diff)
 2. A brief change summary at the end (as a comment block)"""
 
-        response = await self._call_mimo(prompt, max_tokens=8192)
+        response = await self._call_llm(prompt, max_tokens=8192)
 
         return AgentResult(
             agent_name=self.name,

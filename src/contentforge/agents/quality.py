@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from .base import BaseAgent, AgentResult
+from ..utils.text import extract_json
+from .base import AgentResult, BaseAgent
 
 
 class QualityAgent(BaseAgent):
@@ -79,17 +80,17 @@ Score each dimension (0-100) and provide:
 
 Return as structured JSON."""
 
-        response = await self._call_mimo(prompt)
+        response = await self._call_llm(prompt)
 
-        # Parse score from response for metadata
-        overall_score = 0
-        try:
-            import json
-
-            parsed = json.loads(response.content)
-            overall_score = parsed.get("overall_score", 0)
-        except (json.JSONDecodeError, AttributeError):
-            pass
+        # Parse score from response for metadata. Models often wrap JSON in
+        # Markdown fences or add prose, so parse tolerantly.
+        overall_score: float = 0
+        parsed = extract_json(response.content)
+        if isinstance(parsed, dict):
+            try:
+                overall_score = float(parsed.get("overall_score", 0) or 0)
+            except (TypeError, ValueError):
+                overall_score = 0
 
         return AgentResult(
             agent_name=self.name,

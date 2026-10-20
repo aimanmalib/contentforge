@@ -1,14 +1,14 @@
 """ContentForge Agents — 8 specialized AI agents for content pipeline."""
 
-from .base import BaseAgent, AgentResult
-from .research import ResearchAgent
-from .outline import OutlineAgent
-from .writer import WriterAgent
-from .seo import SEOAgent
+from .base import AgentResult, BaseAgent
 from .editor import EditorAgent
-from .translator import TranslatorAgent
-from .quality import QualityAgent
+from .outline import OutlineAgent
 from .publisher import PublisherAgent
+from .quality import QualityAgent
+from .research import ResearchAgent
+from .seo import SEOAgent
+from .translator import TranslatorAgent
+from .writer import WriterAgent
 
 AGENT_REGISTRY: dict[str, type[BaseAgent]] = {
     "research": ResearchAgent,

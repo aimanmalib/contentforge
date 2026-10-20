@@ -28,7 +28,7 @@ def main(ctx: click.Context, config: str | None, verbose: bool) -> None:
     """ContentForge — 8-Agent AI Content Pipeline.
 
     Provider-agnostic: runs on any OpenAI-compatible LLM endpoint
-    (OpenAI, OpenRouter, Ollama, MiMo, ...).
+    (OpenAI, OpenRouter, Ollama, Groq, DeepSeek, ...).
     """
     import logging
 
@@ -49,7 +49,13 @@ def main(ctx: click.Context, config: str | None, verbose: bool) -> None:
 @click.option("--words", "-w", default=2000, help="Target word count")
 @click.option("--language", "-l", default="en", help="Content language")
 @click.option("--output", "-o", default="./output", help="Output directory")
-@click.option("--format", "-f", "fmt", default="markdown", help="Output format")
+@click.option(
+    "--format",
+    "-f",
+    "fmt",
+    default="markdown",
+    help="Publish target(s), comma-separated (markdown, html, wordpress, medium, social, ...)",
+)
 @click.option("--seo/--no-seo", default=True, help="Enable SEO optimization")
 @click.option("--translate", "-t", multiple=True, help="Target languages for translation")
 @click.option("--threshold", default=0.8, help="Quality threshold (0-1)")
@@ -73,6 +79,7 @@ def generate(
     config.pipeline.target_word_count = words
     config.pipeline.language = language
     config.pipeline.output_format = fmt
+    config.pipeline.publish_targets = [t.strip() for t in fmt.split(",") if t.strip()]
     config.pipeline.seo_enabled = seo
     config.pipeline.quality_threshold = threshold
     config.pipeline.max_iterations = max_iter
@@ -84,7 +91,8 @@ def generate(
 
     console.print(
         Panel(
-            f"[bold cyan]MiMo ContentForge v{__version__}[/]\n"
+            f"[bold cyan]ContentForge v{__version__}[/]\n"
+            f"Provider: {config.llm.provider} | Model: {config.llm.model}\n"
             f"Topic: [green]{topic}[/]\n"
             f"Words: {words} | Lang: {language} | Format: {fmt}\n"
             f"SEO: {'ON' if seo else 'OFF'} | Quality: {threshold}\n"
@@ -169,14 +177,19 @@ def report(metrics_file: str) -> None:
 @click.option("--output", "-o", default="contentforge.yaml", help="Output path")
 def init(output: str) -> None:
     """Generate a default configuration file."""
-    config = ContentForgeConfig()
     import yaml
 
+    config = ContentForgeConfig.from_env()
+    data = config.to_template()
+
     with open(output, "w") as f:
-        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
+        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
     console.print(f"[green]Config written to {output}[/]")
-    console.print("Edit MIMO_API_KEY or set the environment variable before running.")
+    console.print(
+        f"Set {data['llm']['api_key'][2:-1]} in your environment (the file references it, "
+        "so the key is never written to disk)."
+    )
 
 
 async def _run_pipeline(config: ContentForgeConfig, topic: str):

@@ -1,4 +1,4 @@
-"""Base agent class with MiMo integration and metrics tracking."""
+"""Base agent class with LLM integration and metrics tracking."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from ..core.config import ContentForgeConfig
-from ..core.mimo_client import ChatMessage, ChatResponse, MiMoClient
+from ..core.llm_client import ChatMessage, ChatResponse, LLMClient
 from ..core.token_tracker import TokenTracker
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class BaseAgent(ABC):
 
     Each agent:
     - Has a unique name and role description
-    - Communicates with MiMo V2.5 Pro via the shared client
+    - Communicates with the configured LLM via the shared client
     - Reports metrics to the global TokenTracker
     - Supports system prompt customization via config
     """
@@ -50,7 +50,7 @@ class BaseAgent(ABC):
     def __init__(
         self,
         config: ContentForgeConfig,
-        client: MiMoClient,
+        client: LLMClient,
         tracker: TokenTracker,
     ):
         self.config = config
@@ -65,7 +65,7 @@ class BaseAgent(ABC):
             return self._agent_config.system_prompt_override
         return self.system_prompt
 
-    async def _call_mimo(
+    async def _call_llm(
         self,
         user_prompt: str,
         *,
@@ -73,7 +73,7 @@ class BaseAgent(ABC):
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
     ) -> ChatResponse:
-        """Make a call to MiMo API with the agent's system prompt."""
+        """Call the configured LLM with the agent's system prompt."""
         messages = [ChatMessage(role="system", content=self.effective_system_prompt)]
 
         if context:
@@ -110,8 +110,11 @@ class BaseAgent(ABC):
                 latency_ms=latency,
                 errors=1,
             )
-            logger.error(f"Agent {self.name} MiMo call failed: {e}")
+            logger.error(f"Agent {self.name} LLM call failed: {e}")
             raise
+
+    # Backward-compatible alias for subclasses written against the old name.
+    _call_mimo = _call_llm
 
     @abstractmethod
     async def execute(self, **kwargs) -> AgentResult:

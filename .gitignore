@@ -19,3 +19,4 @@ output/
 benchmark_results.json
 contentforge.yaml
 .env
+uv.lock

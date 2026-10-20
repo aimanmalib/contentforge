@@ -2,15 +2,17 @@
 
 ContentForge speaks the OpenAI-compatible ``/chat/completions`` protocol, so it
 works with any provider that exposes that API: OpenAI, OpenRouter, Ollama,
-local llama.cpp servers, Xiaomi MiMo Token Plan, and more. Pick a provider via
-``LLMConfig(provider=...)`` or point ``base_url`` at any compatible endpoint.
+local llama.cpp / vLLM servers, Xiaomi MiMo, and more. Pick a provider via
+``LLMConfig(provider=...)`` (or the ``CONTENTFORGE_PROVIDER`` env var) or point
+``base_url`` at any compatible endpoint.
 """
 
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 from pydantic import BaseModel, Field, model_validator
@@ -19,13 +21,6 @@ from pydantic import BaseModel, Field, model_validator
 # vars used to populate api_key / base_url when they aren't set explicitly.
 # auth_style is "bearer" (Authorization: Bearer) or "api-key" (api-key header).
 PROVIDER_PRESETS: dict[str, dict[str, str]] = {
-    "mimo": {
-        "base_url": "https://token-plan-sgp.xiaomimimo.com/v1",
-        "auth_style": "api-key",
-        "model": "mimo-v2.5-pro",
-        "env_key": "MIMO_API_KEY",
-        "env_base": "MIMO_BASE_URL",
-    },
     "openai": {
         "base_url": "https://api.openai.com/v1",
         "auth_style": "bearer",
@@ -75,9 +70,39 @@ PROVIDER_PRESETS: dict[str, dict[str, str]] = {
         "env_key": "MISTRAL_API_KEY",
         "env_base": "MISTRAL_BASE_URL",
     },
+    "mimo": {
+        "base_url": "https://token-plan-sgp.xiaomimimo.com/v1",
+        "auth_style": "api-key",
+        "model": "mimo-v2.5-pro",
+        "env_key": "MIMO_API_KEY",
+        "env_base": "MIMO_BASE_URL",
+    },
 }
 
-DEFAULT_PROVIDER = "mimo"
+DEFAULT_PROVIDER = "openai"
+
+# Env vars read by :meth:`ContentForgeConfig.from_env` to pick a provider/model
+# without a config file.
+ENV_PROVIDER = "CONTENTFORGE_PROVIDER"
+ENV_MODEL = "CONTENTFORGE_MODEL"
+
+_ENV_REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def _expand_env(value: Any) -> Any:
+    """Recursively replace ``${VAR}`` references in strings with env values.
+
+    Unset variables expand to an empty string, so e.g. ``api_key: ${OPENAI_API_KEY}``
+    falls back to the provider preset's env lookup instead of sending the literal
+    placeholder as a credential.
+    """
+    if isinstance(value, str):
+        return _ENV_REF.sub(lambda m: os.environ.get(m.group(1), ""), value)
+    if isinstance(value, dict):
+        return {k: _expand_env(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_expand_env(v) for v in value]
+    return value
 
 
 class LLMConfig(BaseModel):
@@ -124,7 +149,7 @@ class LLMConfig(BaseModel):
 
 
 class MiMoConfig(LLMConfig):
-    """Backward-compatible alias defaulting to the Xiaomi MiMo Token Plan API.
+    """Backward-compatible alias defaulting to the ``mimo`` provider preset.
 
     Retained so existing configs/tests keep working. New code should prefer
     :class:`LLMConfig` with an explicit ``provider``.
@@ -185,13 +210,32 @@ class ContentForgeConfig(BaseModel):
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "ContentForgeConfig":
+        """Load a YAML config; ``${VAR}`` references are expanded from the environment."""
         with open(path) as f:
             data = yaml.safe_load(f) or {}
-        return cls(**data)
+        return cls(**_expand_env(data))
 
     @classmethod
     def from_env(cls) -> "ContentForgeConfig":
-        return cls(llm=LLMConfig())
+        """Build a config from env vars only.
+
+        ``CONTENTFORGE_PROVIDER`` selects the preset (default ``openai``) and
+        ``CONTENTFORGE_MODEL`` overrides its model; the API key and base URL come
+        from the preset's own env vars (e.g. ``OPENAI_API_KEY`` / ``OPENAI_BASE_URL``).
+        """
+        llm_kwargs: dict[str, str] = {}
+        if os.environ.get(ENV_PROVIDER):
+            llm_kwargs["provider"] = os.environ[ENV_PROVIDER]
+        if os.environ.get(ENV_MODEL):
+            llm_kwargs["model"] = os.environ[ENV_MODEL]
+        return cls(llm=LLMConfig(**llm_kwargs))
+
+    def to_template(self) -> dict[str, Any]:
+        """Config as a dict safe to write to disk: the API key becomes a ``${VAR}`` ref."""
+        data = self.model_dump()
+        preset = PROVIDER_PRESETS.get(self.llm.provider, PROVIDER_PRESETS[DEFAULT_PROVIDER])
+        data["llm"]["api_key"] = "${" + preset["env_key"] + "}"
+        return data
 
     def get_agent_config(self, name: str) -> AgentConfig:
         for agent in self.agents:
