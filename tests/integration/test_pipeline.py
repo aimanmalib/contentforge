@@ -1,8 +1,9 @@
 """Integration tests for the pipeline orchestrator."""
 
 import json
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from contentforge.core.config import ContentForgeConfig
 from contentforge.core.mimo_client import ChatResponse, TokenUsage
@@ -76,7 +77,7 @@ class TestPipelineOrchestrator:
             call_count["n"] += 1
             return responses[idx]
 
-        with patch("contentforge.pipeline.orchestrator.MiMoClient") as MockClient:
+        with patch("contentforge.pipeline.orchestrator.LLMClient") as MockClient:
             mock_instance = AsyncMock()
             mock_instance.chat = AsyncMock(side_effect=mock_chat)
             mock_instance.total_usage = TokenUsage()
@@ -116,7 +117,7 @@ class TestPipelineOrchestrator:
             call_count["n"] += 1
             return responses[idx]
 
-        with patch("contentforge.pipeline.orchestrator.MiMoClient") as MockClient:
+        with patch("contentforge.pipeline.orchestrator.LLMClient") as MockClient:
             mock_instance = AsyncMock()
             mock_instance.chat = AsyncMock(side_effect=mock_chat)
             mock_instance.total_usage = TokenUsage()
@@ -130,13 +131,71 @@ class TestPipelineOrchestrator:
         assert "zh" in result.translations
 
     @pytest.mark.asyncio
+    async def test_pipeline_skips_seo_when_disabled(self, config):
+        """--no-seo must skip the SEO agent instead of being silently ignored."""
+        config.pipeline.seo_enabled = False
+        config.pipeline.max_iterations = 1
+
+        responses = [
+            make_response(AGENT_RESPONSES["research"]),
+            make_response(AGENT_RESPONSES["outline"]),
+            make_response(AGENT_RESPONSES["writer"]),
+            make_response(AGENT_RESPONSES["editor"]),
+            make_response(AGENT_RESPONSES["quality"]),
+            make_response(AGENT_RESPONSES["publisher"]),
+        ]
+        call_count = {"n": 0}
+
+        async def mock_chat(*args, **kwargs):
+            idx = call_count["n"]
+            call_count["n"] += 1
+            return responses[idx]
+
+        with patch("contentforge.pipeline.orchestrator.LLMClient") as MockClient:
+            mock_instance = AsyncMock()
+            mock_instance.chat = AsyncMock(side_effect=mock_chat)
+            mock_instance.total_usage = TokenUsage()
+            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_instance.__aexit__ = AsyncMock(return_value=None)
+            MockClient.return_value = mock_instance
+
+            orchestrator = PipelineOrchestrator(config)
+            result = await orchestrator.run("AI in Healthcare")
+
+        assert result.ok
+        assert "seo" not in result.agent_results
+        assert result.seo_analysis == ""
+        assert call_count["n"] == len(responses)
+
+    def test_cli_passes_seo_and_format_to_config(self, monkeypatch):
+        """CLI flags must reach the pipeline config."""
+        from click.testing import CliRunner
+
+        from contentforge import cli
+
+        captured = {}
+
+        async def fake_run(config, topic):
+            captured["config"] = config
+            return PipelineResult(status="success")
+
+        monkeypatch.setattr(cli, "_run_pipeline", fake_run)
+        res = CliRunner().invoke(
+            cli.main, ["generate", "Topic", "--no-seo", "--format", "markdown,html"]
+        )
+        assert res.exit_code == 0, res.output
+        cfg = captured["config"]
+        assert cfg.pipeline.seo_enabled is False
+        assert cfg.pipeline.publish_targets == ["markdown", "html"]
+
+    @pytest.mark.asyncio
     async def test_pipeline_failure_at_research(self, config):
         """Test pipeline handles agent failure gracefully."""
 
         async def mock_chat(*args, **kwargs):
             raise Exception("API connection failed")
 
-        with patch("contentforge.pipeline.orchestrator.MiMoClient") as MockClient:
+        with patch("contentforge.pipeline.orchestrator.LLMClient") as MockClient:
             mock_instance = AsyncMock()
             mock_instance.chat = AsyncMock(side_effect=mock_chat)
             mock_instance.total_usage = TokenUsage()

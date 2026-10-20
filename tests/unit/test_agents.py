@@ -1,19 +1,20 @@
 """Unit tests for all 8 agents."""
 
 import json
-import pytest
 from unittest.mock import AsyncMock
 
-from contentforge.agents.base import BaseAgent, AgentResult
-from contentforge.agents.research import ResearchAgent
-from contentforge.agents.outline import OutlineAgent
-from contentforge.agents.writer import WriterAgent
-from contentforge.agents.seo import SEOAgent
-from contentforge.agents.editor import EditorAgent
-from contentforge.agents.translator import TranslatorAgent
-from contentforge.agents.quality import QualityAgent
-from contentforge.agents.publisher import PublisherAgent
+import pytest
+
 from contentforge.agents import AGENT_REGISTRY, get_agent
+from contentforge.agents.base import AgentResult, BaseAgent
+from contentforge.agents.editor import EditorAgent
+from contentforge.agents.outline import OutlineAgent
+from contentforge.agents.publisher import PublisherAgent
+from contentforge.agents.quality import QualityAgent
+from contentforge.agents.research import ResearchAgent
+from contentforge.agents.seo import SEOAgent
+from contentforge.agents.translator import TranslatorAgent
+from contentforge.agents.writer import WriterAgent
 from contentforge.core.mimo_client import ChatResponse, TokenUsage
 
 
@@ -86,6 +87,11 @@ class TestAgentRegistry:
     def test_get_invalid_raises(self, config, mock_client, tracker):
         with pytest.raises(ValueError, match="Unknown agent"):
             get_agent("nonexistent", config=config, client=mock_client, tracker=tracker)
+
+    def test_legacy_call_mimo_alias(self):
+        from contentforge.agents.base import BaseAgent
+
+        assert BaseAgent._call_mimo is BaseAgent._call_llm
 
     def test_all_subclass_base(self, config, mock_client, tracker):
         for name in AGENT_REGISTRY:
@@ -225,6 +231,16 @@ class TestQualityAgent:
         a = QualityAgent(config=config, client=mock_client, tracker=tracker)
         result = await a.execute(content="Bad article", threshold=0.8)
         assert result.metadata["passes_threshold"] is False
+
+    @pytest.mark.asyncio
+    async def test_execute_parses_fenced_json(self, config, mock_client, tracker):
+        """Real models usually wrap JSON in ```json fences; the score must still parse."""
+        report = 'Here is my evaluation:\n```json\n{"overall_score": "87", "dimensions": {}}\n```'
+        mock_client.chat = AsyncMock(return_value=make_test_response(report))
+        a = QualityAgent(config=config, client=mock_client, tracker=tracker)
+        result = await a.execute(content="Good article", threshold=0.8)
+        assert result.metadata["overall_score"] == 87
+        assert result.metadata["passes_threshold"] is True
 
 
 class TestPublisherAgent:

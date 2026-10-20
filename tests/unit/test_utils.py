@@ -1,13 +1,14 @@
 """Unit tests for text utilities."""
 
+from contentforge.utils.export import export_html, export_markdown
 from contentforge.utils.text import (
     extract_frontmatter,
+    extract_json,
     reading_time,
     slugify,
     truncate,
     word_count,
 )
-from contentforge.utils.export import export_markdown, export_html
 
 
 class TestWordCount:
@@ -105,3 +106,18 @@ class TestExportHTML:
         assert "<!DOCTYPE html>" in content
         assert "<title>Test</title>" in content
         assert "ContentForge" in content
+
+
+class TestExtractJson:
+    def test_plain_json(self):
+        assert extract_json('{"a": 1}') == {"a": 1}
+
+    def test_fenced_json(self):
+        assert extract_json('```json\n{"a": 1}\n```') == {"a": 1}
+
+    def test_json_with_prose(self):
+        assert extract_json('Sure! {"a": {"b": 2}} Hope this helps.') == {"a": {"b": 2}}
+
+    def test_unparseable_returns_none(self):
+        assert extract_json("no json here") is None
+        assert extract_json("") is None

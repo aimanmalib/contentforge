@@ -2,7 +2,32 @@
 
 from __future__ import annotations
 
+import json
 import re
+from typing import Any
+
+_FENCE = re.compile(r"```(?:json|JSON)?\s*\n?(.*?)```", re.DOTALL)
+
+
+def extract_json(text: str) -> Any | None:
+    """Parse JSON from an LLM reply, tolerating Markdown fences and surrounding prose.
+
+    Tries, in order: the whole string, each fenced code block, then the span from the
+    first ``{`` to the last ``}``. Returns ``None`` when nothing parses.
+    """
+    if not text:
+        return None
+    candidates = [text.strip()]
+    candidates += [m.group(1).strip() for m in _FENCE.finditer(text)]
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(text[start : end + 1])
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except (json.JSONDecodeError, ValueError):
+            continue
+    return None
 
 
 def word_count(text: str) -> int:
