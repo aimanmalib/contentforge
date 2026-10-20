@@ -3,7 +3,7 @@
 
 import asyncio
 from contentforge.core.config import ContentForgeConfig
-from contentforge.core.mimo_client import MiMoClient
+from contentforge.core.llm_client import LLMClient
 from contentforge.core.token_tracker import TokenTracker
 from contentforge.agents.research import ResearchAgent
 from contentforge.agents.writer import WriterAgent
@@ -14,7 +14,7 @@ async def main():
     config = ContentForgeConfig.from_env()
     tracker = TokenTracker()
 
-    async with MiMoClient(config.mimo) as client:
+    async with LLMClient(config.llm) as client:
         # Step 1: Research
         research = ResearchAgent(config=config, client=client, tracker=tracker)
         research_result = await research.run(topic="Quantum Computing in 2026")

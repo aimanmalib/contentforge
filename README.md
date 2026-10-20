@@ -1,172 +1,124 @@
 # ContentForge
 
-> **8-Agent AI Content Pipeline for any OpenAI-compatible LLM**
+> **8-agent AI content pipeline for any OpenAI-compatible LLM**
 >
-> From topic to published article in minutes — research, write, optimize, translate, and publish with 8 specialized AI agents orchestrated through a single pipeline.
+> From topic to edited article: research, outline, write, SEO review, edit, quality-score, translate and package for publishing, with eight specialised agents orchestrated through one pipeline.
 
+[![CI](https://github.com/aimanmalib/contentforge/actions/workflows/ci.yml/badge.svg)](https://github.com/aimanmalib/contentforge/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests: 112](https://img.shields.io/badge/tests-112-brightgreen.svg)](tests/)
-[![LOC: 2,900+](https://img.shields.io/badge/LOC-2%2C900%2B-orange.svg)](src/)
 
-Works with **OpenAI, OpenRouter, Ollama, llama.cpp, Xiaomi MiMo**, or any endpoint that speaks the OpenAI `/chat/completions` protocol. Pick a provider with one config line — no code changes.
+Works with **OpenAI, OpenRouter, Ollama, Groq, DeepSeek, Together, Mistral, Xiaomi MiMo**, or any endpoint that speaks the OpenAI `/chat/completions` protocol (vLLM, llama.cpp, LM Studio, a local proxy). Pick a provider with one environment variable or one config line; no code changes.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ContentForge Pipeline                       │
-│              Any OpenAI-compatible LLM backend                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐    │
-│  │ 1.Research│──▶│2.Outline │──▶│ 3.Writer │──▶│  4.SEO   │    │
-│  │  Agent   │   │  Agent   │   │  Agent   │   │  Agent   │    │
-│  └──────────┘   └──────────┘   └──────────┘   └──────────┘    │
-│                                                     │          │
-│                                                     ▼          │
-│  ┌──────────┐   ┌──────────┐        ┌──────────────────┐       │
-│  │8.Publisher│◀──│7.Translate│◀───────│ 5.Editor ──▶ 6.Quality │
-│  │  Agent   │   │  Agent   │        │  (iterate if < threshold)│
-│  └──────────┘   └──────────┘        └──────────────────┘       │
-│       │                                                        │
-│       ▼                                                        │
-│  ┌──────────────────────────────────────────────────────┐      │
-│  │              Token Tracker & Metrics                  │      │
-│  │  Per-agent consumption · Cache hit rate · Latency    │      │
-│  └──────────────────────────────────────────────────────┘      │
-│                                                                 │
-│  Protocol: OpenAI-compatible /chat/completions                 │
-│  Auth: bearer token or api-key header (per provider)           │
-│  Streaming SSE · optional reasoning_content support            │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                     ContentForge Pipeline                        │
+│               Any OpenAI-compatible LLM backend                  │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐       │
+│  │1.Research│──▶│2.Outline │──▶│ 3.Writer │──▶│  4.SEO   │       │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘       │
+│                                                    │ (optional)  │
+│                                                    ▼             │
+│  ┌──────────┐   ┌──────────┐      ┌───────────────────────────┐  │
+│  │8.Publish │◀──│7.Translate│◀────│ 5.Editor ──▶ 6.Quality     │  │
+│  └──────────┘   └──────────┘      │ (repeat while < threshold) │  │
+│       │          (optional)       └───────────────────────────┘  │
+│       ▼                                                          │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │ Token tracker: per-agent tokens, cached tokens, latency    │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-## 8 Specialized Agents
+## The 8 agents
 
-| # | Agent | Role | Avg Tokens/Call |
-|---|-------|------|-----------------|
-| 1 | **Research** | Gathers facts, statistics, expert quotes | ~800 |
-| 2 | **Outline** | Structures content with word allocation | ~600 |
-| 3 | **Writer** | Generates full article draft | ~2,000 |
-| 4 | **SEO** | Analyzes keyword density, meta tags, CTR | ~1,000 |
-| 5 | **Editor** | Refines clarity, grammar, tone | ~2,000 |
-| 6 | **Quality** | Fact-checks, scores 8 quality dimensions | ~1,000 |
-| 7 | **Translator** | Multi-language adaptation (zh/ms/ja/ko/id/th/vi/ar) | ~1,200 |
-| 8 | **Publisher** | Formats for markdown/HTML/WordPress/social | ~800 |
+| # | Agent | Role |
+|---|-------|------|
+| 1 | **Research** | Background, key facts and angles on the topic |
+| 2 | **Outline** | Section structure with word allocation |
+| 3 | **Writer** | Full article draft from outline + research |
+| 4 | **SEO** | Keyword, heading and meta-tag recommendations (skip with `--no-seo`) |
+| 5 | **Editor** | Clarity, grammar and tone; applies SEO suggestions |
+| 6 | **Quality** | Scores 8 dimensions and flags issues; the Editor → Quality loop repeats until the score meets `--threshold` or `--max-iter` is reached |
+| 7 | **Translator** | Adapts the article to other languages (prompt tuned for zh/ms/ja/ko/id/th/vi/ar) |
+| 8 | **Publisher** | Produces platform variants (Markdown, HTML, social snippets, newsletter subject, metadata) as JSON |
 
-**Total per pipeline run: ~9,400 tokens** (single language)
+> **Note:** the Research agent has no web access. "Facts" come from the model's own knowledge, so verify statistics and quotes before publishing.
 
-## Supported Providers
+## Supported providers
 
-ContentForge talks to any OpenAI-compatible `/chat/completions` endpoint. Built-in presets:
+Built-in presets (from [`core/config.py`](src/contentforge/core/config.py)):
 
 | Provider | `provider=` | Default model | Auth | Env vars |
 |----------|-------------|---------------|------|----------|
-| OpenAI | `openai` | `gpt-4o-mini` | Bearer | `OPENAI_API_KEY`, `OPENAI_BASE_URL` |
-| OpenRouter | `openrouter` | `openai/gpt-4o-mini` | Bearer | `OPENROUTER_API_KEY` |
-| Ollama (local) | `ollama` | `llama3.1` | Bearer | `OLLAMA_BASE_URL` |
-| Groq | `groq` | `llama-3.3-70b-versatile` | Bearer | `GROQ_API_KEY` |
-| DeepSeek | `deepseek` | `deepseek-chat` | Bearer | `DEEPSEEK_API_KEY` |
-| Together | `together` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | Bearer | `TOGETHER_API_KEY` |
-| Mistral | `mistral` | `mistral-small-latest` | Bearer | `MISTRAL_API_KEY` |
-| Xiaomi MiMo | `mimo` | `mimo-v2.5-pro` | api-key | `MIMO_API_KEY` |
+| OpenAI (default) | `openai` | `gpt-4o-mini` | Bearer | `OPENAI_API_KEY`, `OPENAI_BASE_URL` |
+| OpenRouter | `openrouter` | `openai/gpt-4o-mini` | Bearer | `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL` |
+| Ollama (local) | `ollama` | `llama3.1` | Bearer | `OLLAMA_API_KEY`, `OLLAMA_BASE_URL` |
+| Groq | `groq` | `llama-3.3-70b-versatile` | Bearer | `GROQ_API_KEY`, `GROQ_BASE_URL` |
+| DeepSeek | `deepseek` | `deepseek-chat` | Bearer | `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL` |
+| Together | `together` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | Bearer | `TOGETHER_API_KEY`, `TOGETHER_BASE_URL` |
+| Mistral | `mistral` | `mistral-small-latest` | Bearer | `MISTRAL_API_KEY`, `MISTRAL_BASE_URL` |
+| Xiaomi MiMo | `mimo` | `mimo-v2.5-pro` | `api-key` header | `MIMO_API_KEY`, `MIMO_BASE_URL` |
 
-Point `base_url` at any other compatible endpoint (llama.cpp, vLLM, LM Studio, a local proxy) and it just works. The pipeline benefits from models that expose a `reasoning_content` field (used by the Quality Agent's 8-dimension scoring) and strong multilingual output (used by the Translator Agent), but neither is required.
+Any other OpenAI-compatible server: keep `provider: openai` and set `OPENAI_BASE_URL` (or `base_url` in the config file) to its `/v1` URL.
 
-## Quick Start
+## Quick start
 
 ```bash
-# Install
-pip install -e ".[dev]"
+git clone https://github.com/aimanmalib/contentforge.git
+cd contentforge
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
 
-# Pick any provider — set its API key (OpenAI shown here)
+# Default provider is OpenAI
 export OPENAI_API_KEY="sk-..."
 
-# Generate content (uses the default provider unless overridden in config)
-contentforge generate "AI in Healthcare" --words 2000 --output ./output
+# Or choose another provider / model via env vars
+# export CONTENTFORGE_PROVIDER=openrouter
+# export OPENROUTER_API_KEY="sk-or-..."
+# export CONTENTFORGE_MODEL="openai/gpt-4o-mini"   # optional model override
+
+contentforge --help
+
+# Generate an article (writes into ./output)
+contentforge generate "AI in Healthcare" --words 800 --output ./output
+
+# Cheaper run: skip SEO, one edit pass
+contentforge generate "AI in Healthcare" --words 300 --no-seo --max-iter 1
 
 # With translation
 contentforge generate "AI Ethics" --translate zh --translate ms
 
-# View token consumption
-contentforge report output/metrics/*.json
+# Per-agent token report for a finished run
+contentforge report output/metrics/<run_id>.json
 
 # List agents
 contentforge agents
 ```
 
-## Usage as Library
+A run writes three files into the output directory:
 
-```python
-import asyncio
-from contentforge.core.config import ContentForgeConfig
-from contentforge.pipeline.orchestrator import PipelineOrchestrator
+- `<timestamp>_article.md`: the final edited article
+- `<timestamp>_publisher.json`: the Publisher agent's platform variants and metadata
+- `metrics/<run_id>.json`: per-agent calls, prompt/completion/cached tokens and latency
 
-async def main():
-    config = ContentForgeConfig.from_env()
-    config.pipeline.target_word_count = 3000
-    config.pipeline.enable_translation = True
-    config.pipeline.target_languages = ["zh", "ms"]
+## Configuration file
 
-    orchestrator = PipelineOrchestrator(config)
-    result = await orchestrator.run("The Future of AI Agents")
-
-    print(f"Article: {len(result.article.split())} words")
-    print(f"Tokens: {result.total_tokens:,}")
-    print(f"Duration: {result.pipeline_duration_s:.1f}s")
-    print(f"Translations: {list(result.translations.keys())}")
-
-    # Token consumption report
-    print(orchestrator.tracker.report())
-
-asyncio.run(main())
-```
-
-## Token Consumption
-
-Average pipeline run consumes **~9,400 tokens** across 8 agents:
-
-```
-============================================================
-  ContentForge Token Consumption Report
-  Run: 20260526_143022
-============================================================
-
-  Pipeline Duration: 12.3s
-  Total Tokens: 9,420
-    Prompt: 4,800 | Completion: 4,620
-    Cache Hit: 1,200 (25.0%)
-  Total API Calls: 8
-
-  Agent                Calls     Tokens    Avg/call   Latency
-  ----------------------------------------------------------
-  writer                    1      2,100      2,100     2500ms
-  editor                    1      2,050      2,050     2200ms
-  translator                1      1,200      1,200     1800ms
-  quality                   1      1,000      1,000     1500ms
-  seo                       1        980        980     1200ms
-  research                  1        820        820     1100ms
-  publisher                 1        780        780      900ms
-  outline                   1        590        590      800ms
-  ----------------------------------------------------------
-  TOTAL                     8      9,520
-============================================================
-```
-
-Daily estimate: **50-100 pipeline runs** = ~500K–1M tokens/day
-
-## Configuration
+Generate a starter file with `contentforge init` (it references your key as `${VAR}` and never writes the key itself), then run with `contentforge -c contentforge.yaml generate ...`.
 
 ```yaml
 # contentforge.yaml
 llm:
-  provider: openai          # openai | openrouter | ollama | mimo
-  api_key: ${OPENAI_API_KEY}
-  # base_url and model default from the provider preset; override if needed
-  # base_url: https://api.openai.com/v1
+  provider: openai          # any preset name from the table above
+  api_key: ${OPENAI_API_KEY} # ${VAR} references are expanded from the environment
+  # base_url and model default from the preset; override if needed
+  # base_url: http://localhost:8000/v1
   # model: gpt-4o-mini
   max_tokens: 4096
   temperature: 0.7
@@ -176,7 +128,7 @@ pipeline:
   target_word_count: 2000
   language: en
   seo_enabled: true
-  quality_threshold: 0.8
+  quality_threshold: 0.8    # 0-1, compared against the Quality agent's 0-100 score
   max_iterations: 3
   enable_translation: false
   target_languages: [zh, ms]
@@ -190,128 +142,91 @@ agents:
     system_prompt_override: "Custom quality rules..."
 ```
 
-## Testing
+## Token usage
 
-```bash
-# Run all tests
-pytest
+Usage depends on the model, the target length and how many Editor → Quality iterations run, so there is no single number to quote. Every run records its own per-agent figures in `metrics/<run_id>.json`; `contentforge report` prints them as a table. For a rough budget: a run makes one call per agent (plus one per translation language and per extra edit iteration), and each call includes the previous stage's output in its prompt.
 
-# With coverage
-pytest --cov=contentforge --cov-report=term-missing
+## Usage as a library
 
-# Run only unit tests
-pytest -m unit
+```python
+import asyncio
+from contentforge.core.config import ContentForgeConfig
+from contentforge.pipeline.orchestrator import PipelineOrchestrator
 
-# Run only integration tests
-pytest -m integration
+async def main():
+    config = ContentForgeConfig.from_env()
+    config.pipeline.target_word_count = 1000
+    config.pipeline.enable_translation = True
+    config.pipeline.target_languages = ["ms"]
 
-# Verbose output
-pytest -v
+    orchestrator = PipelineOrchestrator(config)
+    result = await orchestrator.run("The Future of AI Agents")
+
+    print(f"Article: {len(result.article.split())} words")
+    print(f"Tokens: {result.total_tokens:,}")
+    print(f"Duration: {result.pipeline_duration_s:.1f}s")
+    print(f"Translations: {list(result.translations)}")
+    print(orchestrator.tracker.report())
+
+asyncio.run(main())
 ```
-
-**112 tests** covering:
-- Configuration management (17 tests)
-- Multi-backend LLM config: presets, auth styles, env resolution (16 tests)
-- Token tracking & reporting (14 tests)
-- Text utilities (12 tests)
-- Export utilities (4 tests)
-- Agent base class & all 8 agents (34 tests)
-- Pipeline orchestration (8 tests)
-- Error handling & edge cases (7 tests)
-
-## Project Structure
-
-```
-contentforge/
-├── src/contentforge/
-│   ├── __init__.py
-│   ├── cli.py                    # Click CLI with Rich output
-│   ├── agents/
-│   │   ├── __init__.py           # Agent registry
-│   │   ├── base.py               # BaseAgent abstract class
-│   │   ├── research.py           # Agent 1: Research
-│   │   ├── outline.py            # Agent 2: Outline
-│   │   ├── writer.py             # Agent 3: Writer
-│   │   ├── seo.py                # Agent 4: SEO
-│   │   ├── editor.py             # Agent 5: Editor
-│   │   ├── translator.py         # Agent 6: Translator
-│   │   ├── quality.py            # Agent 7: Quality
-│   │   └── publisher.py          # Agent 8: Publisher
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── config.py             # Pydantic config (multi-provider presets)
-│   │   ├── llm_client.py         # OpenAI-compatible client (SSE streaming)
-│   │   ├── mimo_client.py        # Backward-compat shim → llm_client
-│   │   └── token_tracker.py      # Per-agent token metrics
-│   ├── pipeline/
-│   │   ├── __init__.py
-│   │   └── orchestrator.py       # 8-agent pipeline coordinator
-│   └── utils/
-│       ├── __init__.py
-│       ├── text.py               # Word count, slugify, reading time
-│       └── export.py             # Markdown/HTML export
-├── tests/
-│   ├── conftest.py               # Shared fixtures
-│   ├── unit/
-│   │   ├── test_config.py
-│   │   ├── test_token_tracker.py
-│   │   ├── test_utils.py
-│   │   └── test_agents.py
-│   └── integration/
-│       └── test_pipeline.py
-├── docs/
-│   └── api-reference.md
-├── examples/
-│   ├── basic_usage.py
-│   └── custom_pipeline.py
-├── scripts/
-│   └── run_benchmark.py
-├── pyproject.toml
-├── LICENSE
-└── README.md
-```
-
-## API Reference
 
 ### LLMClient
 
 ```python
-from contentforge.core.llm_client import LLMClient, ChatMessage
+from contentforge.core.config import LLMConfig
+from contentforge.core.llm_client import ChatMessage, LLMClient
 
-async with LLMClient(config) as client:
-    # Non-streaming
-    response = await client.chat([
-        ChatMessage(role="system", content="You are helpful."),
-        ChatMessage(role="user", content="Explain AI agents."),
-    ])
-    print(response.content)
-    print(f"Tokens: {response.usage.total_tokens}")
+messages = [
+    ChatMessage(role="system", content="You are helpful."),
+    ChatMessage(role="user", content="Explain AI agents."),
+]
 
-    # Streaming
+async with LLMClient(LLMConfig(provider="openai")) as client:
+    response = await client.chat(messages)
+    print(response.content, response.usage.total_tokens)
+
     async for chunk in client.stream_chunks(messages):
         print(chunk.delta, end="", flush=True)
 ```
 
-**Auth styles**: `provider="openai"` (and openrouter/ollama) use `Authorization: Bearer`; `provider="mimo"` uses the `api-key` header. The right style is selected automatically from the provider preset. `MiMoClient` remains importable as a backward-compatible alias of `LLMClient`.
+The auth header (`Authorization: Bearer` or `api-key`) is chosen from the provider preset. Models that return a `reasoning_content` field have it captured on the response. `MiMoClient` / `MiMoConfig` remain importable as backward-compatible aliases.
 
-### TokenTracker
+See [`docs/api-reference.md`](docs/api-reference.md) for the full API and [`examples/`](examples/) for runnable scripts.
 
-```python
-from contentforge.core.token_tracker import TokenTracker
+## Development
 
-tracker = TokenTracker()
-tracker.start_pipeline()
-# ... run agents ...
-tracker.end_pipeline()
+```bash
+pip install -e ".[dev]"
+ruff check src/ tests/
+ruff format --check src/ tests/
+pytest                     # unit + integration tests, no network calls
+pytest -m unit             # unit tests only
+```
 
-print(tracker.report())  # Human-readable report
-tracker.save()           # Persist to JSON
+CI runs lint, format check and tests on Python 3.10–3.13. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+
+## Project structure
+
+```
+src/contentforge/
+├── cli.py                 # Click CLI with Rich output
+├── agents/                # base.py + the 8 agents (research, outline, writer, seo,
+│                          #   editor, quality, translator, publisher)
+├── core/
+│   ├── config.py          # Pydantic config + provider presets
+│   ├── llm_client.py      # OpenAI-compatible async client (retries, optional SSE streaming)
+│   ├── mimo_client.py     # Backward-compat shim → llm_client
+│   └── token_tracker.py   # Per-agent token metrics
+├── pipeline/
+│   └── orchestrator.py    # 8-agent pipeline coordinator
+└── utils/                 # text helpers (word count, JSON extraction, ...) + exporters
 ```
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT, see [LICENSE](LICENSE).
 
 ---
 
-**Provider-agnostic** — works with OpenAI, OpenRouter, Ollama, llama.cpp, Xiaomi MiMo, or any OpenAI-compatible `/chat/completions` endpoint.
+Built by [Sasa Teguh](https://sasateguh.com) · Malaysia

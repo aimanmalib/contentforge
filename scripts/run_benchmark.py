@@ -58,7 +58,6 @@ async def run_benchmark(num_runs: int = 3):
         print(f"  Total tokens: {total_tokens:,}")
         print(f"  Avg tokens/run: {avg_tokens:,.0f}")
         print(f"  Avg duration: {avg_duration:.1f}s")
-        print(f"  Est. daily (50 runs): {avg_tokens * 50:,.0f} tokens")
         print("=" * 60)
 
         # Save results

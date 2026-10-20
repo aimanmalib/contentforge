@@ -7,7 +7,8 @@ from contentforge.pipeline.orchestrator import PipelineOrchestrator
 
 
 async def main():
-    # Load config from environment (MIMO_API_KEY must be set)
+    # Load config from environment (OPENAI_API_KEY by default; set
+    # CONTENTFORGE_PROVIDER to use another preset, e.g. openrouter or ollama)
     config = ContentForgeConfig.from_env()
     config.pipeline.target_word_count = 1500
 

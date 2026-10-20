@@ -6,13 +6,15 @@
 
 Configuration management using Pydantic models.
 
-#### `MiMoConfig`
+#### `LLMConfig`
 
 ```python
-MiMoConfig(
-    api_key: str,           # Token Plan API key
-    base_url: str,          # Default: https://token-plan-sgp.xiaomimimo.com/v1
-    model: str,             # Default: mimo-v2.5-pro
+LLMConfig(
+    provider: str,          # Preset name; default "openai" (see PROVIDER_PRESETS)
+    api_key: str,           # Default: the preset's env var, e.g. OPENAI_API_KEY
+    base_url: str,          # Default: the preset's *_BASE_URL env var, else its URL
+    model: str,             # Default: the preset's model, e.g. gpt-4o-mini
+    auth_style: str,        # "bearer" | "api-key"; default from the preset
     max_tokens: int,        # Default: 4096
     temperature: float,     # Default: 0.7
     top_p: float,           # Default: 0.9
@@ -21,16 +23,29 @@ MiMoConfig(
 )
 ```
 
-**Important**: Uses `api-key` header, NOT `Authorization: Bearer`.
+Unknown provider names fall back to the `openai` preset (Bearer auth), so a custom
+endpoint only needs `base_url`. `MiMoConfig` is a backward-compatible subclass whose
+provider defaults to `mimo` (which uses the `api-key` header).
 
-### `contentforge.core.mimo_client`
+#### `ContentForgeConfig`
 
-#### `MiMoClient`
+- `ContentForgeConfig.from_env()`: provider from `CONTENTFORGE_PROVIDER` (default
+  `openai`), optional model override from `CONTENTFORGE_MODEL`, key/base URL from the
+  preset's env vars.
+- `ContentForgeConfig.from_yaml(path)`: loads YAML; `${VAR}` references are expanded
+  from the environment (unset → empty, which then falls back to the preset's env var).
+- `config.to_template()`: dict safe to write to disk (API key replaced by `${VAR}`).
+- `config.mimo`: deprecated alias of `config.llm`.
 
-Async context manager for MiMo API calls.
+### `contentforge.core.llm_client`
+
+#### `LLMClient`
+
+Async context manager for any OpenAI-compatible `/chat/completions` endpoint.
+`MiMoClient` (in `contentforge.core.mimo_client`) is a backward-compatible alias.
 
 ```python
-async with MiMoClient(config) as client:
+async with LLMClient(config.llm) as client:
     response = await client.chat(messages)
     async for chunk in client.stream_chunks(messages):
         print(chunk.delta)
@@ -145,3 +160,10 @@ PipelineResult(
     pipeline_duration_s: float,
 )
 ```
+
+## Utilities
+
+### `contentforge.utils.text.extract_json(text)`
+
+Parses JSON from an LLM reply, tolerating Markdown code fences and surrounding prose.
+Returns `None` when nothing parses. Used by the Quality agent to read its score.
