@@ -37,7 +37,7 @@ body:
     id: version
     attributes:
       label: ContentForge version
-      description: Output of `pip show mimo-contentforge` (Version field) or commit SHA.
+      description: Output of `pip show contentforge` (Version field) or commit SHA.
       placeholder: 1.0.0
     validations:
       required: true

@@ -3,24 +3,29 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mimo-contentforge"
+name = "contentforge"
 version = "1.0.0"
-description = "8-Agent AI Content Pipeline for any OpenAI-compatible LLM (OpenAI, OpenRouter, Ollama, MiMo)"
+description = "8-agent AI content pipeline for any OpenAI-compatible LLM (OpenAI, OpenRouter, Ollama, Groq, ...)"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
-    {name = "ContentForge Team"}
+    {name = "Muhammad Aiman"}
 ]
-keywords = ["ai", "content", "agents", "llm", "openai", "pipeline", "automation"]
+keywords = ["ai", "content", "agents", "llm", "openai", "pipeline", "automation", "seo"]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Text Processing :: General",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
 dependencies = [
@@ -44,6 +49,11 @@ dev = [
     "mypy>=1.5.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/aimanmalib/contentforge"
+Repository = "https://github.com/aimanmalib/contentforge"
+Issues = "https://github.com/aimanmalib/contentforge/issues"
+
 [project.scripts]
 contentforge = "contentforge.cli:main"
 
@@ -62,6 +72,10 @@ markers = [
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+
+[tool.ruff.lint]
+# Explicit rule set so new ruff releases (which change the defaults) don't break CI.
+select = ["E", "F", "W", "I"]
 
 [tool.mypy]
 python_version = "3.10"
