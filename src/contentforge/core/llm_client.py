@@ -1,7 +1,7 @@
 """OpenAI-compatible chat completions client with streaming, retries, token tracking.
 
 Works with any provider that speaks the OpenAI ``/chat/completions`` protocol
-(OpenAI, OpenRouter, Ollama, llama.cpp, Xiaomi MiMo Token Plan, ...). The auth
+(OpenAI, OpenRouter, Ollama, llama.cpp, Xiaomi MiMo, ...). The auth
 header style (bearer vs api-key) comes from :class:`LLMConfig`.
 """
 
@@ -67,7 +67,7 @@ class LLMClient:
 
     Auth style (``Authorization: Bearer`` vs ``api-key`` header) and the
     base URL are taken from the supplied :class:`LLMConfig`, so the same client
-    serves OpenAI, OpenRouter, Ollama, MiMo Token Plan, etc.
+    serves OpenAI, OpenRouter, Ollama, MiMo, etc.
     """
 
     def __init__(self, config: LLMConfig):

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from contentforge.core.config import ContentForgeConfig, MiMoConfig, PipelineConfig
-from contentforge.core.mimo_client import ChatResponse, MiMoClient, TokenUsage
+from contentforge.core.llm_client import ChatResponse, LLMClient, TokenUsage
 from contentforge.core.token_tracker import TokenTracker
 
 
@@ -69,7 +69,7 @@ def mock_response() -> ChatResponse:
 
 @pytest.fixture
 def mock_client(mock_response) -> AsyncMock:
-    client = AsyncMock(spec=MiMoClient)
+    client = AsyncMock(spec=LLMClient)
     client.chat = AsyncMock(return_value=mock_response)
     client.stream_chunks = AsyncMock()
     client.total_usage = TokenUsage()

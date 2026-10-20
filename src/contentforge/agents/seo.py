@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .base import BaseAgent, AgentResult
+from .base import AgentResult, BaseAgent
 
 
 class SEOAgent(BaseAgent):
@@ -73,7 +73,7 @@ Provide:
 
 Return as structured JSON."""
 
-        response = await self._call_mimo(prompt)
+        response = await self._call_llm(prompt)
 
         return AgentResult(
             agent_name=self.name,

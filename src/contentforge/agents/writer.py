@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .base import BaseAgent, AgentResult
+from .base import AgentResult, BaseAgent
 
 
 class WriterAgent(BaseAgent):
@@ -52,7 +52,7 @@ Write the full article in Markdown. Follow the outline structure precisely.
 Each section should meet its word allocation target.
 Include natural keyword integration as specified in the outline."""
 
-        response = await self._call_mimo(prompt, max_tokens=8192)
+        response = await self._call_llm(prompt, max_tokens=8192)
 
         word_count = len(response.content.split())
 

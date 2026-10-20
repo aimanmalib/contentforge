@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .base import BaseAgent, AgentResult
+from .base import AgentResult, BaseAgent
 
 
 class TranslatorAgent(BaseAgent):
@@ -59,7 +59,7 @@ ARTICLE:
 
 Return the full translated article in Markdown."""
 
-        response = await self._call_mimo(prompt, max_tokens=8192)
+        response = await self._call_llm(prompt, max_tokens=8192)
 
         return AgentResult(
             agent_name=self.name,
